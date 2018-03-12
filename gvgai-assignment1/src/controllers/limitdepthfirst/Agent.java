@@ -15,10 +15,15 @@ import tools.Vector2d;
  */
 public class Agent extends AbstractPlayer {
 
+	/**
+	 * Goal position.
+	 */
 	Vector2d goalpos;
-	Vector2d keypos;
 
-	// ACTIONS cutoff, failure;
+	/**
+	 * Key position.
+	 */
+	Vector2d keypos;
 
 	/**
 	 * Available actions.
@@ -26,9 +31,14 @@ public class Agent extends AbstractPlayer {
 	ArrayList<ACTIONS> avlActions;
 
 	/**
-	 * The actions that are actually executed.
+	 * Record the actions when doing limited depth first search.
 	 */
-	private ArrayList<ACTIONS> exeActions;
+	private ArrayList<ACTIONS> tempActions;
+
+	/**
+	 * The action that are actually executed.
+	 */
+	private ACTIONS exeAction;
 
 	/**
 	 * Record the states to avoid loops.
@@ -40,6 +50,12 @@ public class Agent extends AbstractPlayer {
 	 * over.
 	 */
 	private boolean dpsFlag = true;
+
+	/**
+	 * Factor to indicate minimize heuristic value. Set to maximum double before
+	 * doing the limited depth first search.
+	 */
+	private double heuristicFactor;
 
 	/**
 	 * Public constructor with state observation and time due.
@@ -56,69 +72,120 @@ public class Agent extends AbstractPlayer {
 		keypos = movingPositions[0].get(0).position;
 
 		avlActions = so.getAvailableActions();
-		exeActions = new ArrayList<>();
+		tempActions = new ArrayList<>();
 		soList = new ArrayList<>();
 
 		// cutoff = failure = null;
 	}
 
-	private ACTIONS recursiveDLS(StateObservation stateObs, int limit, int depth) {
-		// boolean cutoff_occurred = false;
-		// if (stateObs.getAvatarPosition().equals(goalpos))
-		// return node;
+	/**
+	 * Manhattan function suitable to calculate the distance in grid where sprites'
+	 * move is limited to 4 directions.
+	 * 
+	 * @param v0
+	 *            position 1
+	 * @param v1
+	 *            position 2
+	 * @return Manhattan distance of 2 points in grid.
+	 */
+	private double Manhattan(Vector2d v0, Vector2d v1) {
+		return Math.abs(v0.x - v1.x) + Math.abs(v0.y - v1.y);
+	}
 
-		if (depth == limit)
-			return null;
+	/**
+	 * Heuristic function to judge the situation. In this program, we use Manhattan
+	 * function.
+	 * 
+	 * @param avatarPosition
+	 *            avatar's position
+	 * @param withKey
+	 *            indicates whether avatar has got the key
+	 * @return heuristic value.
+	 */
+	private double heuristic(Vector2d avatarPosition, boolean withKey) {
+		if (withKey == false)
+			return Manhattan(avatarPosition, keypos) * 10 + Manhattan(keypos, goalpos);
+		else
+			return Manhattan(avatarPosition, goalpos);
+	}
+
+	/**
+	 * Limited depth first search.
+	 * 
+	 * @param stateObs
+	 *            state observation of the current game.
+	 * @param limit
+	 *            limited depth. The program is invalid when limit is set to be 1, 2
+	 *            or 9.
+	 * @param depth
+	 *            current searching depth.
+	 */
+	private void dls(StateObservation stateObs, int limit, int depth) {
+		if (limit == depth) { // cutoff
+
+			// Type equals 4 for having key, 1 for otherwise, which is test in
+			// controllers.depthfirst
+			boolean withKey = (stateObs.getAvatarType() == 4);
+			double update = heuristic(stateObs.getAvatarPosition(), withKey);
+			if (update < heuristicFactor) {
+				heuristicFactor = update;
+				exeAction = tempActions.get(0); // Necessarily, because tempActions will be empty after the function.
+			}
+			return;
+		}
 
 		soList.add(stateObs);
-		ACTIONS result = null;
 
 		for (ACTIONS action : avlActions) {
-
 			// Path has been found. No need to search.
 			if (dpsFlag == false)
 				break;
 
+			// Advance and record.
 			StateObservation stCopy = stateObs.copy();
 			stCopy.advance(action);
+			tempActions.add(action);
 
-			if (stCopy.isGameOver())
+			if (stCopy.isGameOver()) {
 				dpsFlag = false;
-			else {
+				exeAction = tempActions.get(0); // Necessarily, because tempActions will be empty after the function.
+			} else {
 				boolean been = false;
 				for (StateObservation so : soList) {
 					if (so.equalPosition(stCopy)) {
 						been = true;
 						break;
 					}
+					// else
+					// System.out.println(so.getAvatarPosition() + " " +
+					// stCopy.getAvatarPosition());
 				}
 				if (been == false)
-					recursiveDLS(stCopy, limit, depth + 1);
+					dls(stCopy, limit, depth + 1);
 			}
 
 			if (dpsFlag == false)
-				result = action;
+				break;
+			tempActions.remove(tempActions.size() - 1); // backward
 		}
 
 		soList.remove(stateObs);
-
-		return result;
-	}
-
-	private ACTIONS dls(StateObservation stateObs, int limit) {
-		return recursiveDLS(stateObs, limit, 0);
 	}
 
 	@Override
 	public ACTIONS act(StateObservation stateObs, ElapsedCpuTimer elapsedTimer) {
-		// TODO Auto-generated method stub
+		if (dpsFlag == true) { // hasn't got a way to goal yet...
+			heuristicFactor = Double.MAX_VALUE;
 
-		if (dpsFlag == true) {
-			dls(stateObs, 4);
-		} else
-			return exeActions.remove(0);
+			// clear ArrayList to start a new dls
+			tempActions.clear();
+			soList.clear();
+			dls(stateObs, 3, 0);
 
-		return null;
+			return exeAction;
+			// System.out.println(tempActions);
+		} else // path has been found, act in accordance with the search path.
+			return tempActions.remove(0);
 	}
 
 }

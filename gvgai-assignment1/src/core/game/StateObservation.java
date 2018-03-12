@@ -544,7 +544,7 @@ public class StateObservation {
 			return false;
 		if (this.getAvatarSpeed() != other.getAvatarSpeed())
 			return false;
-		if (this.getAvatarPosition().equals(other.getAvatarPosition()) == false)
+		if (!this.getAvatarPosition().equals(other.getAvatarPosition()))
 			return false;
 
 		// Check resources

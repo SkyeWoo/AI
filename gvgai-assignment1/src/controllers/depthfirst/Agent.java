@@ -73,6 +73,7 @@ public class Agent extends AbstractPlayer {
 			// Play the game. Advance and record the actions.
 			StateObservation stCopy = stateObs.copy();
 			stCopy.advance(action);
+			// System.out.println(stCopy.getAvatarType());
 			exeActions.add(action);
 
 			// Judge whether to continue search.
