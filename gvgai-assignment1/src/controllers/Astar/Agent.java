@@ -3,13 +3,11 @@ package controllers.Astar;
 import java.util.ArrayList;
 import java.util.PriorityQueue;
 
-import core.game.Observation;
 import core.game.StateObservation;
 import core.player.AbstractPlayer;
 import ontology.Types.ACTIONS;
 import ontology.Types.WINNER;
 import tools.ElapsedCpuTimer;
-import tools.Vector2d;
 
 /**
  * @author 昕
@@ -17,8 +15,6 @@ import tools.Vector2d;
  */
 
 public class Agent extends AbstractPlayer {
-
-	// private HashMap<MyClass, Double> costSoFar;
 
 	/**
 	 * Available actions.
@@ -38,12 +34,12 @@ public class Agent extends AbstractPlayer {
 	/**
 	 * Goal position.
 	 */
-	private Vector2d goalpos;
+	// private Vector2d goalpos;
 
 	/**
 	 * Key position.
 	 */
-	private Vector2d keypos;
+	// private Vector2d keypos;
 
 	private boolean continueFlag = true;
 
@@ -62,78 +58,29 @@ public class Agent extends AbstractPlayer {
 		exeActions = new ArrayList<>();
 		soList = new ArrayList<>();
 
-		ArrayList<Observation>[] fixedPositions = so.getImmovablePositions();
-		ArrayList<Observation>[] movingPositions = so.getMovablePositions();
-		goalpos = fixedPositions[1].get(0).position;
-		keypos = movingPositions[0].get(0).position;
-
-		// frontier = new PriorityQueue<>(new Comparator<MyEntry>() {
-		// @Override
-		// public int compare(MyEntry o1, MyEntry o2) {
-		// return (int) (o1.getValue() - o2.getValue());
+		/**
+		 * 通过以下这段代码测试可以得到 wall - 0 goal - 7 avatar - 1 (without key) avatar - 4 (with
+		 * key) box - 8 hole - 2 key - 6
+		 */
+		// ArrayList<Observation> grid[][];
+		// grid = so.getObservationGrid();
+		// for (int i = 0; i < grid[0].length; i++) {
+		// for (int j = 0; j < grid.length; j++) {
+		// if (grid[j][i].size() > 0)
+		// System.out.print(grid[j][i].get(0).itype);
+		// else
+		// System.out.print(" ");
 		// }
-		// });
+		// System.out.println();
+		// }
 
-		// frontier = new PriorityQueue<>();
-
-		// cameFrome = new HashMap<>();
-		// costSoFar = new HashMap<>();
-
-		// cameFrome.put(so.getAvatarPosition(), so.getAvatarPosition());
-		// costSoFar.put(new MyClass(so), 0.0);
 		AStarSearch(so);
-		// AStarSearch(so, 0);
-
-		for (ACTIONS action : exeActions) {
-			System.out.println(action.name());
-		}
-	}
-
-	/**
-	 * Manhattan function suitable to calculate the distance in grid where sprites'
-	 * move is limited to 4 directions.
-	 * 
-	 * @param v0
-	 *            position 1
-	 * @param v1
-	 *            position 2
-	 * @return Manhattan distance of 2 points in grid.
-	 */
-	private double Manhattan(Vector2d v0, Vector2d v1) {
-		return Math.abs(v0.x - v1.x) + Math.abs(v0.y - v1.y);
-	}
-
-	/**
-	 * Heuristic function to judge the situation. In this program, we use Manhattan
-	 * function.
-	 * 
-	 * @param avatarPosition
-	 *            avatar's position
-	 * @param withKey
-	 *            indicates whether avatar has got the key
-	 * @return heuristic value.
-	 */
-	private double heuristic(StateObservation so) {
-		if (so.isGameOver()) {
-			if (so.getGameWinner().equals(WINNER.PLAYER_WINS))
-				return 0;
-			else
-				return Double.MAX_VALUE;
-		}
-
-		Vector2d avatarPosition = so.getAvatarPosition();
-		boolean withKey = (so.getAvatarType() == 4);
-		if (withKey == false)
-			// here 10 is a artificial factor that consider the loss avoiding boxes.
-			return Manhattan(avatarPosition, keypos) * 10 + Manhattan(keypos, goalpos);
-		else
-			return Manhattan(avatarPosition, goalpos);
 	}
 
 	public void AStarSearch(StateObservation stateObs) {
 
 		frontier = new PriorityQueue<>();
-		frontier.add(new MyEntry(stateObs, null, 0.0, 0));
+		frontier.add(new MyEntry(stateObs, null));
 
 		while (!frontier.isEmpty() && continueFlag) {
 			MyEntry current = frontier.poll();
@@ -152,9 +99,9 @@ public class Agent extends AbstractPlayer {
 				}
 
 				if (been == false && stCopy.isGameOver() == false) {
-					int depth = current.getDepth() + 1;
-					double value = depth * 50 + heuristic(stCopy);
-					frontier.add(new MyEntry(stCopy, current, value, depth));
+					// int depth = current.getDepth() + 1;
+					// double value = depth * 50 + heuristic(stCopy);
+					frontier.add(new MyEntry(stCopy, current));
 				} else {
 					if (stCopy.getGameWinner().equals(WINNER.PLAYER_WINS)) {
 						continueFlag = false;
