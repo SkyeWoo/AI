@@ -18,17 +18,17 @@ public class Agent extends AbstractPlayer {
 	/**
 	 * Goal position.
 	 */
-	Vector2d goalpos;
+	private Vector2d goalpos;
 
 	/**
 	 * Key position.
 	 */
-	Vector2d keypos;
+	private Vector2d keypos;
 
 	/**
 	 * Available actions.
 	 */
-	ArrayList<ACTIONS> avlActions;
+	private ArrayList<ACTIONS> avlActions;
 
 	/**
 	 * Record the actions when doing limited depth first search.
