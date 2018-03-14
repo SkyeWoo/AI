@@ -18,7 +18,7 @@ import tools.Vector2d;
 
 public class Agent extends AbstractPlayer {
 
-	// private HashMap<Vector2d, Double> costSoFar;
+	// private HashMap<MyClass, Double> costSoFar;
 
 	/**
 	 * Available actions.
@@ -74,15 +74,15 @@ public class Agent extends AbstractPlayer {
 		// }
 		// });
 
-		frontier = new PriorityQueue<>();
+		// frontier = new PriorityQueue<>();
 
 		// cameFrome = new HashMap<>();
 		// costSoFar = new HashMap<>();
 
 		// cameFrome.put(so.getAvatarPosition(), so.getAvatarPosition());
-		// costSoFar.put(so.getAvatarPosition(), 0.0);
-		frontier.add(new MyEntry(so, 0.0));
-		AStarSearch(so, 0);
+		// costSoFar.put(new MyClass(so), 0.0);
+		AStarSearch(so);
+		// AStarSearch(so, 0);
 
 		for (ACTIONS action : exeActions) {
 			System.out.println(action.name());
@@ -124,70 +124,51 @@ public class Agent extends AbstractPlayer {
 		Vector2d avatarPosition = so.getAvatarPosition();
 		boolean withKey = (so.getAvatarType() == 4);
 		if (withKey == false)
+			// here 10 is a artificial factor that consider the loss avoiding boxes.
 			return Manhattan(avatarPosition, keypos) * 10 + Manhattan(keypos, goalpos);
 		else
 			return Manhattan(avatarPosition, goalpos);
 	}
 
-	public void AStarSearch(StateObservation stateObs, int depth) {
-		soList.add(stateObs);
+	public void AStarSearch(StateObservation stateObs) {
 
-		double newCost = 50.0 * depth;
-
-		Vector2d current = stateObs.getAvatarPosition();
-		// newCost = costSoFar.get(current) + 50.0;
-		// Set<Vector2d> keySet = costSoFar.keySet();
-		// for (Vector2d key : keySet) {
-		// if (key.equals(current)) {
-		// newCost = costSoFar.get(key) + 50.0;
-		// break;
-		// }
-		// }
-
-		for (ACTIONS action : avlActions) {
-			StateObservation stCopy = stateObs.copy();
-			stCopy.advance(action);
-
-			// for (Vector2d key : keySet) {
-			// if (key.equals(stCopy.getAvatarPosition()) && costSoFar.get(key) > newCost) {
-			// costSoFar.remove(key);
-			// break;
-			// }
-			// }
-
-			// costSoFar.put(stCopy.getAvatarPosition(), newCost);
-
-			double priority = newCost + heuristic(stCopy);
-			frontier.add(new MyEntry(stCopy, priority));
-		}
+		frontier = new PriorityQueue<>();
+		frontier.add(new MyEntry(stateObs, null, 0.0, 0));
 
 		while (!frontier.isEmpty() && continueFlag) {
-			StateObservation so = frontier.poll().getKey();
+			MyEntry current = frontier.poll();
+			soList.add(current.getKey());
 
-			if (so.getGameWinner().equals(WINNER.PLAYER_WINS)) {
-				continueFlag = false;
-				exeActions.add(so.getAvatarLastAction());
-			} else {
+			for (ACTIONS action : avlActions) {
+				StateObservation stCopy = current.getKey().copy();
+				stCopy.advance(action);
+
 				boolean been = false;
-				for (StateObservation state : soList) {
-					if (state.equalPosition(so)) {
+				for (MyEntry history : frontier) {
+					if (history.getKey().equalPosition(stCopy)) {
 						been = true;
 						break;
 					}
 				}
 
-				if (been == false) {
+				if (been == false && stCopy.isGameOver() == false) {
+					int depth = current.getDepth() + 1;
+					double value = depth * 50 + heuristic(stCopy);
+					frontier.add(new MyEntry(stCopy, current, value, depth));
+				} else {
+					if (stCopy.getGameWinner().equals(WINNER.PLAYER_WINS)) {
+						continueFlag = false;
+						exeActions.add(stCopy.getAvatarLastAction());
 
-					System.out.println(so.getAvatarLastAction());
-					AStarSearch(so, depth + 1);
+						MyEntry it = current;
+						while (it != null) {
+							exeActions.add(it.getKey().getAvatarLastAction());
+							it = it.getComeFrom();
+						}
+					}
 				}
 			}
 		}
-
-		if (continueFlag == false)
-			exeActions.add(stateObs.getAvatarLastAction());
-
-		soList.remove(stateObs);
 	}
 
 	@Override
