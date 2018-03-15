@@ -8,13 +8,24 @@ import ontology.Types.WINNER;
 import tools.Vector2d;
 
 final class MyEntry implements Comparable<MyEntry> {
+	/**
+	 * current state
+	 */
 	private StateObservation key;
 
 	/**
-	 * 需要一个链表来记录到达目标的过程中avatar的actions
+	 * last state, where we can get avatar's last action
 	 */
 	private MyEntry comeFrom;
+
+	/**
+	 * heuristic value
+	 */
 	private Double value;
+
+	/**
+	 * search depth
+	 */
 	private int depth;
 
 	/**
@@ -27,7 +38,7 @@ final class MyEntry implements Comparable<MyEntry> {
 	 *            position 2
 	 * @return Manhattan distance of 2 points in grid.
 	 */
-	private double Manhattan(Vector2d v0, Vector2d v1) {
+	static double Manhattan(Vector2d v0, Vector2d v1) {
 		return Math.abs(v0.x - v1.x) + Math.abs(v0.y - v1.y);
 	}
 
@@ -43,18 +54,19 @@ final class MyEntry implements Comparable<MyEntry> {
 	 */
 	private double heuristic(StateObservation so) {
 		if (so.isGameOver()) {
-			if (so.getGameWinner().equals(WINNER.PLAYER_WINS))
+			if (so.getGameWinner().equals(WINNER.PLAYER_WINS)) // win
 				return 0;
-			else
+			else // lose
 				return Double.MAX_VALUE;
 		}
 
 		ArrayList<Observation>[] fixedPositions = so.getImmovablePositions();
 		ArrayList<Observation>[] movingPositions = so.getMovablePositions();
-		// Vector2d goalpos = fixedPositions[1].get(0).position;
+		// error occurs if goalpos set as null
 		Vector2d goalpos = new Vector2d();
 		Vector2d keypos;
 
+		// calculate the loss cause by immovable sprites
 		int loss = 0;
 		for (ArrayList<Observation> obj : fixedPositions) {
 			if (obj.size() > 0) {
@@ -65,8 +77,10 @@ final class MyEntry implements Comparable<MyEntry> {
 					break;
 				case 5: // mushroom
 					loss += 100 * obj.size();
+					break;
 				case 6: // key
 					goalpos = obj.get(0).position;
+					break;
 				default:
 					break;
 				}
@@ -77,8 +91,8 @@ final class MyEntry implements Comparable<MyEntry> {
 		boolean withKey = (so.getAvatarType() == 4);
 		if (withKey == false) {
 			keypos = movingPositions[0].get(0).position;
-			// here 10 is a artificial factor that consider the loss avoiding boxes.
-			return Manhattan(avatarPosition, keypos) + Manhattan(keypos, goalpos) + loss + 500;
+			// here 1000 must be added, or OutOfMemoryError occurs
+			return Manhattan(avatarPosition, keypos) + Manhattan(keypos, goalpos) + loss + 1000;
 		} else
 			return Manhattan(avatarPosition, goalpos) + loss;
 	}

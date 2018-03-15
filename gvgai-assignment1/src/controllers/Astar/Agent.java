@@ -32,24 +32,21 @@ public class Agent extends AbstractPlayer {
 	private ArrayList<StateObservation> soList;
 
 	/**
-	 * Goal position.
+	 * Indicates whether to continue AstarSearch.
 	 */
-	// private Vector2d goalpos;
-
-	/**
-	 * Key position.
-	 */
-	// private Vector2d keypos;
-
 	private boolean continueFlag = true;
 
+	/**
+	 * A list of state's entries, information about every state's depth, last state,
+	 * and heuristic value.
+	 */
 	PriorityQueue<MyEntry> frontier;
 
 	/**
 	 * Public constructor with state observation and time due.
 	 * 
 	 * @param so
-	 *            state observation of the current game.
+	 *            state observation of the last game.
 	 * @param elapsedTimer
 	 *            Timer for the controller creation.
 	 */
@@ -59,8 +56,8 @@ public class Agent extends AbstractPlayer {
 		soList = new ArrayList<>();
 
 		/**
-		 * 通过以下这段代码测试可以得到 wall - 0 goal - 7 avatar - 1 (without key) avatar - 4 (with
-		 * key) box - 8 hole - 2 key - 6
+		 * By testing the code below we get: wall - 0 goal - 7 avatar - 1 (without key)
+		 * avatar - 4 (with key) box - 8 hole - 2 key - 6 mushroom - 5
 		 */
 		// ArrayList<Observation> grid[][];
 		// grid = so.getObservationGrid();
@@ -77,37 +74,47 @@ public class Agent extends AbstractPlayer {
 		AStarSearch(so);
 	}
 
+	/**
+	 * A* algorithm.
+	 * 
+	 * @param stateObs
+	 *            state observation of the last game.
+	 */
 	public void AStarSearch(StateObservation stateObs) {
 
 		frontier = new PriorityQueue<>();
-		frontier.add(new MyEntry(stateObs, null));
+		frontier.add(new MyEntry(stateObs, null)); // start point
 
 		while (!frontier.isEmpty() && continueFlag) {
-			MyEntry current = frontier.poll();
-			soList.add(current.getKey());
+
+			MyEntry last = frontier.poll(); // Get current heuristic best state.
+			soList.add(last.getKey()); // Mark as has visited.
 
 			for (ACTIONS action : avlActions) {
-				StateObservation stCopy = current.getKey().copy();
-				stCopy.advance(action);
+
+				// Advance and update frontier.
+				StateObservation current = last.getKey().copy();
+				current.advance(action);
 
 				boolean been = false;
 				for (MyEntry history : frontier) {
-					if (history.getKey().equalPosition(stCopy)) {
+					if (history.getKey().equalPosition(current)) {
 						been = true;
 						break;
 					}
 				}
 
-				if (been == false && stCopy.isGameOver() == false) {
-					// int depth = current.getDepth() + 1;
-					// double value = depth * 50 + heuristic(stCopy);
-					frontier.add(new MyEntry(stCopy, current));
-				} else {
-					if (stCopy.getGameWinner().equals(WINNER.PLAYER_WINS)) {
-						continueFlag = false;
-						exeActions.add(stCopy.getAvatarLastAction());
+				if (been == false && current.isGameOver() == false)
+					frontier.add(new MyEntry(current, last));
+				else {
 
-						MyEntry it = current;
+					// Exit of algorithm.
+					if (current.getGameWinner().equals(WINNER.PLAYER_WINS)) {
+						continueFlag = false;
+						exeActions.add(current.getAvatarLastAction());
+
+						// Upback to record the actions on the path.
+						MyEntry it = last;
 						while (it != null) {
 							exeActions.add(it.getKey().getAvatarLastAction());
 							it = it.getComeFrom();
