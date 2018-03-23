@@ -6,6 +6,7 @@ import core.game.Observation;
 import core.game.StateObservation;
 import core.player.AbstractPlayer;
 import ontology.Types.ACTIONS;
+import ontology.Types.WINNER;
 import tools.ElapsedCpuTimer;
 
 /**
@@ -56,19 +57,40 @@ public class Agent extends AbstractPlayer {
 	}
 
 	/**
+	 * Judge if the node has been reached.
+	 * 
+	 * @param so
+	 *            state observation of the current game.
+	 * @return true if the state has been reached, false otherwise.
+	 */
+	private boolean isVisited(StateObservation so) {
+		for (StateObservation state : soList)
+			if (state.equalPosition(so))
+				return true;
+
+		return false;
+	}
+
+	/**
 	 * Depth first search.
 	 * 
 	 * @param stateObs
 	 *            state observation of the current game.
 	 */
 	private void dps(StateObservation stateObs) {
+		// Path has been found. No need to search.
+		if (dpsFlag == false)
+			return;
 		soList.add(stateObs);
 
-		for (ACTIONS action : avlActions) {
+		// Judge whether to continue search.
+		if (stateObs.isGameOver()) {
+			if (stateObs.getGameWinner().equals(WINNER.PLAYER_WINS))
+				dpsFlag = false;
+			return;
+		}
 
-			// Path has been found. No need to search.
-			if (dpsFlag == false)
-				break;
+		for (ACTIONS action : avlActions) {
 
 			// Play the game. Advance and record the actions.
 			StateObservation stCopy = stateObs.copy();
@@ -76,28 +98,14 @@ public class Agent extends AbstractPlayer {
 			// System.out.println(stCopy.getAvatarType());
 			exeActions.add(action);
 
-			// Judge whether to continue search.
-			if (stCopy.isGameOver())
-				dpsFlag = false;
-			else {
-				boolean been = false; // Indicates whether a loop occurs.
-				for (StateObservation so : soList) {
-					if (so.equalPosition(stCopy)) {
-						// if (so.getAvatarPosition().equals(stCopy.getAvatarPosition())) {
-						been = true;
-						break;
-					}
-				}
-				if (been == false)
-					dps(stCopy);
-			}
+			if (isVisited(stCopy) == false)
+				dps(stCopy);
 
-			if (dpsFlag == false)
-				break;
-			exeActions.remove(exeActions.size() - 1); // backward
+			if (dpsFlag == true)
+				exeActions.remove(exeActions.size() - 1); // backward
 		}
 
-		soList.remove(stateObs);
+		// soList.remove(stateObs);
 	}
 
 	@Override
