@@ -1,11 +1,13 @@
 package controllers.limitdepthfirst;
 
 import java.util.ArrayList;
+import java.util.Random;
 
 import core.game.Observation;
 import core.game.StateObservation;
 import core.player.AbstractPlayer;
 import ontology.Types.ACTIONS;
+import ontology.Types.WINNER;
 import tools.ElapsedCpuTimer;
 import tools.Vector2d;
 
@@ -16,14 +18,9 @@ import tools.Vector2d;
 public class Agent extends AbstractPlayer {
 
 	/**
-	 * Goal position.
+	 * Random generator for the agent.
 	 */
-	private Vector2d goalpos;
-
-	/**
-	 * Key position.
-	 */
-	private Vector2d keypos;
+	protected Random randomGenerator;
 
 	/**
 	 * Available actions.
@@ -66,10 +63,11 @@ public class Agent extends AbstractPlayer {
 	 *            Timer for the controller creation.
 	 */
 	public Agent(StateObservation so, ElapsedCpuTimer elapsedTimer) {
-		ArrayList<Observation>[] fixedPositions = so.getImmovablePositions();
-		ArrayList<Observation>[] movingPositions = so.getMovablePositions();
-		goalpos = fixedPositions[1].get(0).position;
-		keypos = movingPositions[0].get(0).position;
+		randomGenerator = new Random();
+		// ArrayList<Observation>[] fixedPositions = so.getImmovablePositions();
+		// ArrayList<Observation>[] movingPositions = so.getMovablePositions();
+		// goalpos = fixedPositions[1].get(0).position;
+		// keypos = movingPositions[0].get(0).position;
 
 		avlActions = so.getAvailableActions();
 		tempActions = new ArrayList<>();
@@ -88,7 +86,7 @@ public class Agent extends AbstractPlayer {
 	 *            position 2
 	 * @return Manhattan distance of 2 points in grid.
 	 */
-	private double Manhattan(Vector2d v0, Vector2d v1) {
+	static double Manhattan(Vector2d v0, Vector2d v1) {
 		return Math.abs(v0.x - v1.x) + Math.abs(v0.y - v1.y);
 	}
 
@@ -96,17 +94,50 @@ public class Agent extends AbstractPlayer {
 	 * Heuristic function to judge the situation. In this program, we use Manhattan
 	 * function.
 	 * 
-	 * @param avatarPosition
-	 *            avatar's position
+	 * @param so
+	 *            state observation of the current game.
 	 * @param withKey
 	 *            indicates whether avatar has got the key
 	 * @return heuristic value.
 	 */
-	private double heuristic(Vector2d avatarPosition, boolean withKey) {
-		if (withKey == false)
-			return Manhattan(avatarPosition, keypos) * 10 + Manhattan(keypos, goalpos);
-		else
+	private double heuristic(StateObservation so, boolean withKey) {
+		ArrayList<Observation>[] fixedPositions = so.getImmovablePositions();
+		ArrayList<Observation>[] movingPositions = so.getMovablePositions();
+		// error occurs if goalpos set as null
+		Vector2d goalpos = new Vector2d();
+		Vector2d keypos;
+
+		// calculate the loss cause by immovable sprites
+		for (ArrayList<Observation> obj : fixedPositions) {
+			if (obj.size() > 0) {
+				int itype = obj.get(0).itype;
+				if (itype == 7)
+					goalpos = obj.get(0).position;
+			}
+		}
+
+		Vector2d avatarPosition = so.getAvatarPosition();
+		if (withKey == false) {
+			keypos = movingPositions[0].get(0).position;
+			// here 1000 must be added, or OutOfMemoryError occurs
+			return Manhattan(avatarPosition, keypos) + Manhattan(keypos, goalpos) + 500;
+		} else
 			return Manhattan(avatarPosition, goalpos);
+	}
+
+	/**
+	 * Judge if the node has been reached.
+	 * 
+	 * @param so
+	 *            state observation of the current game.
+	 * @return true if the state has been reached, false otherwise.
+	 */
+	private boolean isVisited(StateObservation so) {
+		for (StateObservation state : soList)
+			if (state.equalPosition(so))
+				return true;
+
+		return false;
 	}
 
 	/**
@@ -121,12 +152,34 @@ public class Agent extends AbstractPlayer {
 	 *            current searching depth.
 	 */
 	private void dls(StateObservation stateObs, int limit, int depth) {
+		// Path has been found. No need to search.
+		if (dpsFlag == false)
+			return;
+		if (stateObs.isGameOver()) {
+			// win. take the steps as tempActions recorded.
+			if (stateObs.getGameWinner().equals(WINNER.PLAYER_WINS)) {
+				dpsFlag = false;
+				exeAction = tempActions.remove(0);
+			} else {
+				// if is lose situation, then randomly choose a direction
+				// that is different with the first step leading to lose.
+				int index;
+				StateObservation so;
+				do {
+					index = randomGenerator.nextInt(avlActions.size());
+					exeAction = avlActions.get(index);
+					so = stateObs.copy();
+					so.advance(exeAction);
+				} while (exeAction.equals(tempActions.get(0)) && isVisited(so) && so.isGameOver() == false);
+			}
+			return;
+		}
 		if (limit == depth) { // cutoff
 
 			// Type equals 4 for having key, 1 for otherwise, which is test in
-			// controllers.depthfirst
+			// controllers.depthfirst.Agent.java
 			boolean withKey = (stateObs.getAvatarType() == 4);
-			double update = heuristic(stateObs.getAvatarPosition(), withKey);
+			double update = heuristic(stateObs, withKey);
 			if (update < heuristicFactor) {
 				heuristicFactor = update;
 				exeAction = tempActions.get(0); // Necessarily, because tempActions will be empty after the function.
@@ -137,39 +190,22 @@ public class Agent extends AbstractPlayer {
 		soList.add(stateObs);
 
 		for (ACTIONS action : avlActions) {
-			// Path has been found. No need to search.
 			if (dpsFlag == false)
-				break;
+				return;
 
 			// Advance and record.
 			StateObservation stCopy = stateObs.copy();
 			stCopy.advance(action);
 			tempActions.add(action);
 
-			if (stCopy.isGameOver()) {
-				dpsFlag = false;
-				exeAction = tempActions.get(0); // Necessarily, because tempActions will be empty after the function.
-			} else {
-				boolean been = false;
-				for (StateObservation so : soList) {
-					if (so.equalPosition(stCopy)) {
-						been = true;
-						break;
-					}
-					// else
-					// System.out.println(so.getAvatarPosition() + " " +
-					// stCopy.getAvatarPosition());
-				}
-				if (been == false)
-					dls(stCopy, limit, depth + 1);
-			}
+			if (isVisited(stCopy) == false)
+				dls(stCopy, limit, depth + 1);
 
-			if (dpsFlag == false)
-				break;
-			tempActions.remove(tempActions.size() - 1); // backward
+			if (dpsFlag == true)
+				tempActions.remove(tempActions.size() - 1); // backward
 		}
 
-		soList.remove(stateObs);
+		// soList.remove(stateObs);
 	}
 
 	@Override
@@ -180,7 +216,7 @@ public class Agent extends AbstractPlayer {
 			// clear ArrayList to start a new dls
 			tempActions.clear();
 			soList.clear();
-			dls(stateObs, 3, 0);
+			dls(stateObs, 5, 0);
 
 			return exeAction;
 			// System.out.println(tempActions);

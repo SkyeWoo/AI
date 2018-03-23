@@ -78,7 +78,7 @@ final class MyEntry implements Comparable<MyEntry> {
 				case 5: // mushroom
 					loss += 100 * obj.size();
 					break;
-				case 6: // key
+				case 7: // goal
 					goalpos = obj.get(0).position;
 					break;
 				default:
@@ -92,7 +92,7 @@ final class MyEntry implements Comparable<MyEntry> {
 		if (withKey == false) {
 			keypos = movingPositions[0].get(0).position;
 			// here 1000 must be added, or OutOfMemoryError occurs
-			return Manhattan(avatarPosition, keypos) + Manhattan(keypos, goalpos) + loss + 1000;
+			return Manhattan(avatarPosition, keypos) + Manhattan(keypos, goalpos) + loss + 500;
 		} else
 			return Manhattan(avatarPosition, goalpos) + loss;
 	}
