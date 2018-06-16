@@ -29,7 +29,7 @@ public class Assignment4 {
 		// false);
 		// String level2 = gamesPath + games[gameIdx] + "_lvl" + 1 +".txt";
 		for (int i = 0; i < 10; i++) {
-			String levelfile = level + "5.txt";
+			String levelfile = level + "0.txt";
 			ArcadeMachine.runOneGame(game, levelfile, visuals, rlController, null, seed, false);
 		}
 
